@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app
+  namespace: apps
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: app
+  template:
+    metadata:
+      labels:
+        app: app
+    spec:
+      initContainers:
+      - name: wait-for-ldap
+        image: busybox:1.36
+        command: ["sh", "-c", "until nc -z openldap.ldap.svc.cluster.local 389; do echo waiting for ldap; sleep 2; done"]
+      - name: seed-config
+        image: busybox:1.36
+        command: ["sh", "-c", "cp /config-in/settings.yml /shared/settings.yml"]
+        volumeMounts:
+        - name: config
+          mountPath: /config-in
+        - name: shared
+          mountPath: /shared
+      containers:
+      - name: app
+        image: nginx:1.27
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: shared
+          mountPath: /etc/app
+      volumes:
+      - name: config
+        configMap:
+          name: app-config
+      - name: shared
+        emptyDir: {}

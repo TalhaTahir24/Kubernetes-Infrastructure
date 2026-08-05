@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openldap
+  namespace: ldap
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: openldap
+  template:
+    metadata:
+      labels:
+        app: openldap
+    spec:
+      containers:
+      - name: openldap
+        image: osixia/openldap:1.5.0
+        envFrom:
+        - secretRef:
+            name: openldap
+        env:
+        - name: LDAP_ORGANISATION
+          value: DC1
+        - name: LDAP_DOMAIN
+          value: dc1.local
+        ports:
+        - name: ldap
+          containerPort: 389
+        - name: ssl
+          containerPort: 636
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/ldap
+        - name: config
+          mountPath: /etc/ldap/slapd.d
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: openldap-data
+      - name: config
+        persistentVolumeClaim:
+          claimName: openldap-config

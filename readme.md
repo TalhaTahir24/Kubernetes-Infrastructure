@@ -1,49 +1,76 @@
 # Kubernetes-Infrastructure
 
-Kubernetes manifests for core cluster services: internal DNS (BIND9), web serving with ingress (NGINX + Traefik), and secrets management (Vault). Deployed on a homelab cluster and managed through GitOps with ArgoCD.
+Manifests for **DC1**, a production-like homelab Kubernetes platform. Three-node K3s cluster running ingress, distributed storage, centralized identity, secrets management, and internal applications — the same patterns used for enterprise internal platforms.
+
+## Environment
+
+| Component | Value |
+|-----------|-------|
+| Cluster | K3s (1 control plane, 2 workers) |
+| Nodes | mi-k3s-01 / mi-k3s-02 / mi-k3s-03 |
+| OS | Ubuntu Server |
+| Ingress | Traefik (bundled with K3s) |
+| Storage | Longhorn, 2 replicas (~25 GB free per node) |
+| Secrets | Vault (KV, PKI, SSH CA, Kubernetes auth) |
+| Identity | OpenLDAP + phpLDAPadmin |
+| SSO | Authelia |
+
+Operating rules:
+
+- Every HTTP workload goes through a Traefik ingress; no NodePort or LoadBalancer.
+- Every stateful workload uses a Longhorn PVC; no hostPath or local-path.
+- Workloads authenticate to Vault via Kubernetes service accounts, not static credentials.
+
+See `docs/architecture.md` for the full picture.
 
 ## Layout
 
-```
-.
-├── bind9/     BIND9 DNS: ConfigMap-backed zone, Deployment with PVC, ArgoCD Application
-├── nginx/     NGINX Deployment (3 replicas), Service, Traefik IngressRoute, Kustomize
-└── vault/     Vault Deployment, Ingress
-```
-
-## Components
-
-| Component | What it does |
-|-----------|--------------|
-| BIND9 | Internal DNS for the cluster and workloads; zone config lives in a ConfigMap so it deploys without rebuilds |
-| NGINX | Serves web workloads; exposed through a Traefik IngressRoute on websecure |
-| Vault | Central secrets management, reached through a TLS ingress |
+| Directory | Purpose |
+|-----------|---------|
+| `k3s/` | Cluster setup, namespaces, verification |
+| `traefik/` | Reusable ingress template and middlewares |
+| `longhorn/` | Storage class and UI ingress |
+| `vault/` | Helm values, ingress, policies, PKI, SSH CA, Kubernetes auth |
+| `openldap/` | LDAP directory on Longhorn storage |
+| `phpldapadmin/` | LDAP management UI |
+| `authelia/` | SSO portal |
+| `workloads/` | Stateless, stateful, init-container, FastAPI and HPA examples |
+| `ssh-ca/` | Client script + docs for Vault-signed SSH certificates |
+| `docs/` | Architecture, build notes, install order, commands |
 
 ## Deploying
 
-```bash
-git clone https://github.com/TalhaTahir24/Kubernetes-Infrastructure.git
-cd Kubernetes-Infrastructure
+Order matters — see `docs/install-order.md`. The short version:
 
-kubectl apply -f bind9/
-kubectl apply -f nginx/
-kubectl apply -f vault/
+```bash
+kubectl apply -f k3s/namespaces.yaml
+kubectl apply -f longhorn/                       # storage first
+
+helm repo add hashicorp https://helm.releases.hashicorp.com
+helm install vault hashicorp/vault -n vault --create-namespace -f vault/values.yaml
+kubectl apply -f vault/ingress.yaml
+
+kubectl apply -f openldap/ phpldapadmin/
+kubectl apply -f authelia/
+kubectl apply -f workloads/
 ```
 
-Namespaces and ingress hostnames are placeholders (`*.homelab.lab`) — set them to your own domain before applying.
+Placeholder secrets are marked `changeme` in the manifests — generate your own before applying. DNS names use the internal domain `dc1.local`.
 
-## GitOps
+## Vault SSH CA
 
-`bind9/argocd-app.yaml` registers the DNS component as an ArgoCD Application (`repoURL` points at this repository) so changes converge automatically instead of being applied by hand.
+User workstations don't keep long-lived keys on servers. Vault signs short-lived SSH certificates instead:
 
-## Requirements
+- Server side: `vault/ssh-ca/setup.sh` enables the `ssh` engine and creates the `ubuntu-ca` role.
+- Client side: `ssh-ca/renew-ssh-cert.sh` uploads the key, signs it, installs `~/.ssh/id_ed25519-cert.pub`, and verifies with `ssh-keygen -L`.
+- Trust: servers point `TrustedUserCAKeys` at the CA public key.
 
-- Kubernetes cluster
-- `kubectl` configured
-- Optional: ArgoCD for the GitOps path
+See `docs/ssh-certificate-workflow.md`.
 
-## Notes
+## Docs
 
-- BIND9 needs a persistent volume for its zone data (see PVC in `bind9/deployment.yaml`).
-- Vault requires proper secrets and TLS config before production use.
-- The DNS zone and ingress hosts use a placeholder internal domain; substitute your own.
+- `docs/architecture.md` — cluster, services, scaling, future direction
+- `docs/build-notes.md` — what was built and what went wrong along the way
+- `docs/install-order.md` — rebuild checklist
+- `docs/commands.md` — commands actually used
+- `docs/ssh-certificate-workflow.md` — Vault SSH CA end to end

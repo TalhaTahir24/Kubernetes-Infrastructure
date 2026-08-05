@@ -1,0 +1,25 @@
+server:
+  enabled: true
+  image:
+    repository: hashicorp/vault
+    tag: 1.15.6
+  standalone:
+    enabled: true
+    config: |
+      ui = true
+      listener "tcp" {
+        address     = "0.0.0.0:8200"
+        tls_disable = true
+      }
+      storage "file" {
+        path = "/vault/data"
+      }
+  service:
+    enabled: true
+    type: ClusterIP
+  dataStorage:
+    enabled: true
+    storageClass: longhorn
+    size: 5Gi
+  ingress:
+    enabled: false

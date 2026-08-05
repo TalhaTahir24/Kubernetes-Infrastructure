@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: authelia
+  namespace: authelia
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: authelia
+  template:
+    metadata:
+      labels:
+        app: authelia
+    spec:
+      containers:
+      - name: authelia
+        image: authelia/authelia:4.38
+        args: ["--config", "/config/configuration.yml"]
+        env:
+        - name: AUTHELIA_SESSION_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: authelia
+              key: session-secret
+        - name: AUTHELIA_AUTHENTICATION_BACKEND_LDAP_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: authelia
+              key: ldap-password
+        ports:
+        - containerPort: 9091
+        volumeMounts:
+        - name: config
+          mountPath: /config
+          readOnly: true
+        - name: data
+          mountPath: /data
+        readinessProbe:
+          httpGet:
+            path: /api/health
+            port: 9091
+      volumes:
+      - name: config
+        configMap:
+          name: authelia-config
+      - name: data
+        persistentVolumeClaim:
+          claimName: authelia-data
