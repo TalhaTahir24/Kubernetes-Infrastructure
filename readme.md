@@ -1,83 +1,49 @@
-# DMM Kubernetes Infrastructure
+# Kubernetes-Infrastructure
 
-This repository contains Kubernetes manifests for deploying and managing core infrastructure components for the DMM project. The setup includes DNS (BIND9), web server (NGINX), and secrets management (Vault), all orchestrated using Kubernetes best practices.
+Kubernetes manifests for core cluster services: internal DNS (BIND9), web serving with ingress (NGINX + Traefik), and secrets management (Vault). Deployed on a homelab cluster and managed through GitOps with ArgoCD.
 
-## Repository Structure
+## Layout
 
 ```
 .
-├── bind9/
-│   ├── argocd-app.yaml      # ArgoCD application manifest for BIND9
-│   ├── configmap.yaml       # BIND9 configuration (ConfigMap)
-│   ├── deployment.yaml      # BIND9 Deployment and PVC
-│   └── service.yaml         # BIND9 Service
-├── nginx/
-│   ├── deployment.yaml      # NGINX Deployment
-│   ├── ingress.yaml         # NGINX Ingress resource
-│   ├── kustomization.yaml   # Kustomize configuration
-│   └── service.yaml         # NGINX Service
-├── vault/
-│   ├── deployment.yaml      # Vault Deployment
-│   ├── ingress.yaml         # Vault Ingress resource
-│   └── readme.md            # Vault-specific documentation
-└── readme.md                # (This file)
+├── bind9/     BIND9 DNS: ConfigMap-backed zone, Deployment with PVC, ArgoCD Application
+├── nginx/     NGINX Deployment (3 replicas), Service, Traefik IngressRoute, Kustomize
+└── vault/     Vault Deployment, Ingress
 ```
 
 ## Components
 
-### 1. BIND9 (DNS Server)
-- **Purpose:** Provides DNS services for the cluster and internal applications.
-- **Key Files:**
-  - `deployment.yaml`: Deploys BIND9 with persistent storage and config from ConfigMap.
-  - `configmap.yaml`: Contains `named.conf` and zone file for `dmm.tt.pk`.
-  - `service.yaml`: Exposes BIND9 via Kubernetes Service.
-  - `argocd-app.yaml`: For GitOps deployment with ArgoCD.
+| Component | What it does |
+|-----------|--------------|
+| BIND9 | Internal DNS for the cluster and workloads; zone config lives in a ConfigMap so it deploys without rebuilds |
+| NGINX | Serves web workloads; exposed through a Traefik IngressRoute on websecure |
+| Vault | Central secrets management, reached through a TLS ingress |
 
-### 2. NGINX (Web Server)
-- **Purpose:** Serves as a web server and ingress point for HTTP traffic.
-- **Key Files:**
-  - `deployment.yaml`: Deploys NGINX with 3 replicas in the `web` namespace.
-  - `service.yaml`: Exposes NGINX via Kubernetes Service.
-  - `ingress.yaml`: Configures ingress routing for web traffic.
-  - `kustomization.yaml`: For managing resources with Kustomize.
+## Deploying
 
-### 3. Vault (Secrets Management)
-- **Purpose:** Manages secrets and sensitive data for applications.
-- **Key Files:**
-  - `deployment.yaml`: Deploys Vault.
-  - `ingress.yaml`: Exposes Vault via Ingress.
-  - `readme.md`: Vault-specific usage and configuration notes.
+```bash
+git clone https://github.com/TalhaTahir24/Kubernetes-Infrastructure.git
+cd Kubernetes-Infrastructure
 
-## Usage
+kubectl apply -f bind9/
+kubectl apply -f nginx/
+kubectl apply -f vault/
+```
 
-1. **Clone the repository:**
-   ```sh
-   git clone https://github.com/TalhaTahir24/dmm.git
-   cd dmm
-   ```
-2. **Apply manifests:**
-   Apply the manifests in the desired order, e.g.:
-   ```sh
-   kubectl apply -f bind9/
-   kubectl apply -f nginx/
-   kubectl apply -f vault/
-   ```
-   Adjust namespaces and configurations as needed for your environment.
+Namespaces and ingress hostnames are placeholders (`*.homelab.lab`) — set them to your own domain before applying.
 
-3. **ArgoCD Integration:**
-   Use the `argocd-app.yaml` in the `bind9/` directory for GitOps deployment if using ArgoCD.
+## GitOps
+
+`bind9/argocd-app.yaml` registers the DNS component as an ArgoCD Application (`repoURL` points at this repository) so changes converge automatically instead of being applied by hand.
 
 ## Requirements
-- Kubernetes cluster (v1.20+ recommended)
-- `kubectl` installed and configured
-- (Optional) ArgoCD for GitOps workflows
+
+- Kubernetes cluster
+- `kubectl` configured
+- Optional: ArgoCD for the GitOps path
 
 ## Notes
-- Update DNS zone files and NGINX ingress rules as per your domain and application requirements.
-- Persistent storage is required for BIND9 (see PVC in `bind9/deployment.yaml`).
-- Review and secure Vault deployment before using in production.
 
-## License
-
-This repository is maintained by [TalhaTahir24](https://github.com/TalhaTahir24). See individual files for license details if applicable.
-Hello
+- BIND9 needs a persistent volume for its zone data (see PVC in `bind9/deployment.yaml`).
+- Vault requires proper secrets and TLS config before production use.
+- The DNS zone and ingress hosts use a placeholder internal domain; substitute your own.

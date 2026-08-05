@@ -7,7 +7,7 @@ spec:
   entryPoints:
     - websecure
   routes:
-    - match: Host(`web1.dmm.tt.pk`)
+    - match: Host(`web1.homelab.lab`)
       kind: Rule
       services:
         - name: nginx-service

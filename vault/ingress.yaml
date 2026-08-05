@@ -10,10 +10,10 @@ metadata:
 spec:
   tls:
     - hosts:
-        - vault.dmm.tt.pk
+        - vault.homelab.lab
       secretName: traefik-cert  # You already created this
   rules:
-    - host: vault.dmm.tt.pk
+    - host: vault.homelab.lab
       http:
         paths:
           - path: /

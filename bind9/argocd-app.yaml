@@ -6,7 +6,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: 'https://github.com/TalhaTahir24/dmm.git'
+    repoURL: 'https://github.com/TalhaTahir24/Kubernetes-Infrastructure.git'
     targetRevision: HEAD
     path: bind9
   destination:

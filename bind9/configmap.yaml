@@ -14,20 +14,20 @@ data:
       };
     };
 
-    zone "dmm.tt.pk" {
+    zone "homelab.lab" {
       type master;
-      file "/var/cache/bind/db.dmm.tt.pk";
+      file "/var/cache/bind/db.homelab.lab";
     };
 
-  db.dmm.tt.pk: |
+  db.homelab.lab: |
     $TTL    604800
-    @       IN      SOA     ns1.dmm.tt.pk. admin.dmm.tt.pk. (
+    @       IN      SOA     ns1.homelab.lab. admin.homelab.lab. (
                             2         ; Serial
                        604800         ; Refresh
                         86400         ; Retry
                       2419200         ; Expire
                        604800 )       ; Negative Cache TTL
 
-    @       IN      NS      ns1.dmm.tt.pk.
+    @       IN      NS      ns1.homelab.lab.
     ns1     IN      A       10.202.99.61
     traefik     IN      A       10.202.99.60
