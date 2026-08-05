@@ -2,7 +2,29 @@
 
 Manifests for **DC1**, a production-like homelab Kubernetes platform. Three-node K3s cluster running ingress, distributed storage, centralized identity, secrets management, and internal applications — the same patterns used for enterprise internal platforms.
 
-## Environment
+## About the project
+
+DC1 is built to simulate a real company's internal platform in a homelab: a small cluster that runs the services a business would depend on, using the same architecture decisions an enterprise would make.
+
+What it does:
+
+- **Runs a full platform stack on Kubernetes** — ingress (Traefik), distributed storage (Longhorn), centralized identity (OpenLDAP), SSO (Authelia), and secrets management (Vault) all running as workloads on the cluster itself.
+- **Keeps secrets out of the cluster config** — Vault stores credentials and certificates. Workloads authenticate with Kubernetes service accounts instead of static tokens, Vault signs short-lived SSH certificates for user workstations (see the `ssh-ca/` directory), and an internal PKI issues TLS certificates.
+- **Centralizes identity and access** — every internal application sits behind Authelia, which authenticates against OpenLDAP. Users, groups, and OUs are managed from phpLDAPadmin.
+- **Hosts stateful and stateless workloads** — stateless apps scale horizontally with an HPA; stateful workloads (databases) use Longhorn volumes with replicas, and init containers handle dependency ordering and config seeding.
+- **Documents the whole build** — `docs/` covers the architecture, the install order, the commands actually used, and the mistakes and fixes from the build, so the cluster can be rebuilt reproducibly.
+
+How a request flows:
+
+```
+User → Traefik → Authelia → OpenLDAP (auth)
+                    ↓
+               FastAPI → Vault → Database
+                    ↓
+                Longhorn PVCs
+```
+
+The goal is a platform that is production-like enough to be real practice for enterprise infrastructure, while running entirely on ~25 GB per node.
 
 | Component | Value |
 |-----------|-------|
